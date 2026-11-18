@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第3章 k近邻法 · 核心概念与代码</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+  svg: { fontCache: 'global' },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  :root{
+    --bg:#eef2f9; --panel:#ffffff; --panel-2:#eef1f8; --ink:#152238; --ink-soft:#4a5a72; --muted:#7d8aa0; --line:#dce3ef;
+    --brand:#3b5bdb; --brand-2:#5c7cfa; --model:#2f6bff; --strategy:#0ca678; --algo:#7048e8; --warn:#f76707;
+    --shadow:0 18px 44px -20px rgba(21,34,56,.34); --shadow-sm:0 8px 22px -14px rgba(21,34,56,.28); --radius:18px;
+    --glow1:rgba(92,124,250,.16); --glow2:rgba(112,72,232,.14); --glow3:rgba(12,166,120,.12);
+    --formula-1:#f7f9ff; --formula-2:#eef3ff; --formula-border:#dbe4fb; --formula-plain:#f7f9fc;
+    --band-1:#f3f6ff; --band-2:#eef9f5; --band-border:#cdd9f5;
+    --th-bg:#f2f5fc; --code-fg:#364ea8; --scroll-thumb:#cfd8e8; --dot:#c9d3e6;
+    --nav-bg:rgba(255,255,255,.82); --nav-btn:#eef1f8; --nav-btn-fg:#fff;
+    --btn-bg:rgba(255,255,255,.72); --btn-hover:#fff; --badge-bg:rgba(255,255,255,.7); --chip-bg:#fff;
+    --cover-a:#25397a; --foot:#aab4c8; --map-n:#c3cde4; --codeblock-bg:#f6f8fc;
+    --tag-m:rgba(47,107,255,.12); --tag-s:rgba(12,166,120,.13); --tag-a:rgba(112,72,232,.13); --tag-w:rgba(247,103,7,.14);
+  }
+  [data-theme="dark"]{
+    --bg:#0b0f17; --panel:#151b27; --panel-2:#1e2634; --ink:#e8eef9; --ink-soft:#a9b6cc; --muted:#8291a8; --line:#28313f;
+    --brand:#7c9cff; --brand-2:#9db2ff; --model:#6b9bff; --strategy:#2dd4a7; --algo:#ad8bff; --warn:#ff9a4d;
+    --shadow:0 22px 52px -22px rgba(0,0,0,.78); --shadow-sm:0 10px 26px -16px rgba(0,0,0,.7);
+    --glow1:rgba(92,124,250,.22); --glow2:rgba(112,72,232,.2); --glow3:rgba(12,166,120,.15);
+    --formula-1:#161f30; --formula-2:#131a28; --formula-border:#29344a; --formula-plain:#141b28;
+    --band-1:#161f30; --band-2:#132420; --band-border:#33415a;
+    --th-bg:#1b2432; --code-fg:#9db2ff; --scroll-thumb:#39445a; --dot:#39445a;
+    --nav-bg:rgba(18,24,34,.85); --nav-btn:#232c3b; --nav-btn-fg:#0b0f17;
+    --btn-bg:rgba(255,255,255,.05); --btn-hover:#1b2432; --badge-bg:rgba(255,255,255,.05); --chip-bg:#1b2432;
+    --cover-a:#b9c8ff; --foot:#5a6579; --map-n:#3d4b63; --codeblock-bg:#0f141f;
+    --tag-m:rgba(107,155,255,.16); --tag-s:rgba(45,212,167,.16); --tag-a:rgba(173,139,255,.16); --tag-w:rgba(255,154,77,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden;transition:background .35s ease,color .35s ease}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(60% 50% at 12% 6%, var(--glow1), transparent 60%),
+      radial-gradient(50% 50% at 92% 10%, var(--glow2), transparent 60%),
+      radial-gradient(55% 55% at 85% 96%, var(--glow3), transparent 62%), var(--bg);transition:background .35s ease}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--brand),var(--algo));z-index:60;width:0;transition:width .35s ease;border-radius:0 3px 3px 0}
+  .topbar{position:fixed;top:0;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;z-index:50;font-size:12.5px;color:var(--muted);pointer-events:none}
+  .topbar .brandline{display:flex;align-items:center;gap:9px;font-weight:700;color:var(--ink-soft);letter-spacing:.02em}
+  .brandline .dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--algo));box-shadow:0 0 0 3px var(--glow1)}
+  .topbar .tools{display:flex;gap:8px;pointer-events:auto}
+  .tbtn{border:1px solid var(--line);background:var(--btn-bg);color:var(--ink-soft);border-radius:9px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;transition:.18s;backdrop-filter:blur(6px)}
+  .tbtn:hover{background:var(--btn-hover);border-color:var(--brand-2);color:var(--brand);box-shadow:var(--shadow-sm)}
+  .deck{position:relative;height:100%;width:100%;z-index:1}
+  .slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:58px 30px 88px;opacity:0;transform:translateY(26px) scale(.985);pointer-events:none;transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .5s cubic-bezier(.22,.61,.36,1);overflow:hidden}
+  .slide.active{opacity:1;transform:none;pointer-events:auto}
+  .slide.prev{transform:translateY(-26px) scale(.985)}
+  .inner{width:min(1140px,100%);max-height:100%;overflow:auto;padding:6px 4px 4px;scrollbar-width:thin}
+  .inner::-webkit-scrollbar{width:8px}
+  .inner::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:8px}
+  .kicker{display:flex;align-items:center;gap:11px;font-size:13px;font-weight:700;color:var(--brand);letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px}
+  .kicker .bar{width:26px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--brand),var(--algo))}
+  h1.title{font-size:52px;line-height:1.16;font-weight:900;margin:0 0 14px}
+  h2{font-size:31px;font-weight:900;margin:0 0 18px;letter-spacing:-.01em;line-height:1.2}
+  h2 .em{background:linear-gradient(120deg,var(--brand),var(--algo));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h3{font-size:18px;font-weight:900;margin:0 0 10px}
+  .lead{font-size:17px;color:var(--ink-soft);line-height:1.65;max-width:880px;margin-bottom:18px}
+  p{margin:0 0 12px;line-height:1.7}
+  strong{font-weight:700;color:var(--ink)}
+  code{font-family:'JetBrains Mono',monospace;font-size:.9em;background:var(--panel-2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--code-fg)}
+  .tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.02em}
+  .tag.m{background:var(--tag-m);color:var(--model)} .tag.s{background:var(--tag-s);color:var(--strategy)}
+  .tag.a{background:var(--tag-a);color:var(--algo)} .tag.w{background:var(--tag-w);color:var(--warn)}
+  ul.clean{list-style:none;padding:0;margin:0}
+  ul.clean li{position:relative;padding-left:24px;margin:10px 0;line-height:1.6;color:var(--ink-soft)}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:9px;width:8px;height:8px;border-radius:2px;background:linear-gradient(135deg,var(--brand),var(--algo));transform:rotate(45deg)}
+  ul.clean li b{color:var(--ink)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm);transition:background .35s ease,border-color .35s ease}
+  .grid{display:grid;gap:16px}
+  .g-2{grid-template-columns:repeat(2,1fr)} .g-3{grid-template-columns:repeat(3,1fr)} .g-4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:900px){.g-2,.g-3,.g-4{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.g-2,.g-3,.g-4{grid-template-columns:1fr}h1.title{font-size:36px}h2{font-size:25px}}
+  .card .ct{font-weight:900;font-size:16px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .card .cb{color:var(--ink-soft);font-size:14.5px;line-height:1.62}
+  .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;font-size:13px;font-weight:900;color:#fff;flex:none}
+  .num.m{background:linear-gradient(135deg,#2f6bff,#5c8bff)} .num.s{background:linear-gradient(135deg,#0ca678,#38d9a9)}
+  .num.a{background:linear-gradient(135deg,#7048e8,#9775fa)} .num.x{background:linear-gradient(135deg,#f76707,#ffa94d)}
+  .card.accent-m{border-top:3px solid var(--model)} .card.accent-s{border-top:3px solid var(--strategy)}
+  .card.accent-a{border-top:3px solid var(--algo)} .card.accent-w{border-top:3px solid var(--warn)}
+  .formula{background:linear-gradient(180deg,var(--formula-1),var(--formula-2));border:1px solid var(--formula-border);border-radius:14px;padding:14px 20px;margin:12px 0;text-align:center;overflow-x:auto;transition:background .35s ease}
+  .formula.plain{background:var(--formula-plain);border-color:var(--line)}
+  .note{font-size:13px;color:var(--muted);margin-top:6px}
+  .flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;justify-content:center;margin:8px 0}
+  .fnode{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px;min-width:110px;text-align:center;box-shadow:var(--shadow-sm);flex:1;transition:background .35s ease}
+  .fnode .fh{font-weight:900;font-size:14px;margin-bottom:4px} .fnode .fd{font-size:12px;color:var(--muted);line-height:1.5}
+  .farrow{display:flex;align-items:center;padding:0 8px;color:var(--brand-2);font-size:22px;font-weight:900}
+  .band{display:flex;align-items:center;gap:14px;background:linear-gradient(120deg,var(--band-1),var(--band-2));border:1px dashed var(--band-border);border-radius:14px;padding:13px 17px;margin:14px 0;transition:background .35s ease}
+  .band .big{font-size:24px;flex:none} .band b{color:var(--ink)} .band .txt{font-size:14px;color:var(--ink-soft);line-height:1.55}
+  table.tb{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm);transition:background .35s ease}
+  table.tb th,table.tb td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  table.tb th{background:var(--th-bg);font-weight:900;color:var(--ink);font-size:13px}
+  table.tb tr:last-child td{border-bottom:none} table.tb td b{color:var(--ink)}
+  table.tb td.c,table.tb th.c{text-align:center} table.tb .code{font-family:'JetBrains Mono',monospace;color:var(--code-fg);font-size:.88em}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+  pre.code{background:var(--codeblock-bg);border:1px solid var(--line);border-radius:14px;padding:15px 18px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.66;color:var(--ink);margin:12px 0;transition:background .35s ease}
+  pre.code code{background:none;border:none;padding:0;color:inherit;font-size:inherit}
+  .tok-k{color:var(--algo);font-weight:700} .tok-f{color:var(--model)} .tok-c{color:var(--muted);font-style:italic}
+  .tok-s{color:var(--strategy)} .tok-n{color:var(--warn)}
+  .output{background:var(--panel-2);border-left:3px solid var(--strategy);border-radius:0 10px 10px 0;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-soft);margin:8px 0;white-space:pre-wrap;line-height:1.6}
+  .output .lbl{color:var(--strategy);font-weight:700}
+  .resline{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:6px 0;font-size:14px}
+  .resline .k{font-family:'JetBrains Mono',monospace;color:var(--code-fg);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:2px 9px;font-size:12.5px}
+  .resline .v{font-family:'JetBrains Mono',monospace;color:var(--strategy);font-weight:700}
+  figure.fig{margin:10px 0;text-align:center}
+  figure.fig img{max-width:100%;border-radius:12px;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow-sm)}
+  figure.fig figcaption{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .cover{text-align:center;align-items:center}
+  .cover .badge{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--badge-bg);border-radius:999px;padding:7px 16px;font-size:13px;font-weight:700;color:var(--ink-soft);box-shadow:var(--shadow-sm)}
+  .cover h1{font-size:62px;line-height:1.1;font-weight:900;margin:22px 0 10px;letter-spacing:-.02em;background:linear-gradient(115deg,var(--cover-a) 10%,var(--brand) 45%,var(--algo) 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .cover .sub{font-size:20px;color:var(--ink-soft);font-weight:500;margin-bottom:8px}
+  .cover .meta{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .cover .chip{background:var(--chip-bg);border:1px solid var(--line);border-radius:12px;padding:9px 15px;font-size:13px;color:var(--ink-soft);box-shadow:var(--shadow-sm)}
+  .cover .chip b{color:var(--brand)}
+  .map{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.map{grid-template-columns:1fr}}
+  .map .it{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:background .35s ease}
+  .map .it .n{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--map-n);font-size:22px;line-height:1}
+  .map .it .t{font-weight:900;font-size:15px;margin:6px 0 5px} .map .it .d{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;color:var(--ink-soft)}
+  .nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:16px;z-index:55;background:var(--nav-bg);border:1px solid var(--line);border-radius:999px;padding:8px 12px;box-shadow:var(--shadow);backdrop-filter:blur(10px);transition:background .35s ease}
+  .nav button{border:none;background:var(--nav-btn);color:var(--ink-soft);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.18s}
+  .nav button:hover{background:var(--brand);color:var(--nav-btn-fg);transform:translateY(-1px)}
+  .nav button:disabled{opacity:.35;cursor:default;transform:none;background:var(--nav-btn);color:var(--ink-soft)}
+  .dots{display:flex;gap:7px;align-items:center;max-width:44vw;overflow:hidden}
+  .dots i{width:8px;height:8px;border-radius:50%;background:var(--dot);cursor:pointer;transition:.2s;flex:none}
+  .dots i.on{background:linear-gradient(135deg,var(--brand),var(--algo));width:22px;border-radius:999px}
+  .counter{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-soft);min-width:52px;text-align:center}
+  .counter b{color:var(--brand)}
+  .foot{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:11.5px;color:var(--foot);letter-spacing:.03em}
+  .hint{position:fixed;bottom:24px;right:24px;font-size:12px;color:var(--muted);z-index:54;display:flex;gap:6px;align-items:center}
+  @media(max-width:820px){.hint{display:none}}
+</style>
+<script>
+  (function(){try{document.documentElement.setAttribute('data-theme',localStorage.getItem('deck-theme')||'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();
+</script>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="topbar">
+  <div class="brandline"><span class="dot"></span>《统计学习方法》(第二版) · 李航</div>
+  <div class="tools">
+    <button class="tbtn" id="btnTheme" title="切换深色 / 浅色">🌙 深色</button>
+    <button class="tbtn" id="btnOverview">总览</button>
+    <button class="tbtn" id="btnFull">全屏</button>
+  </div>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 封面 -->
+  <section class="slide cover active">
+    <div class="inner" style="text-align:center">
+      <div class="badge">✦ 配套代码仓库 · lihang-code</div>
+      <h1>k 近邻法</h1>
+      <div class="sub">第 3 章 · 近朱者赤：看最近的 k 个邻居投票决定</div>
+      <p class="lead" style="margin:18px auto 0;max-width:660px">
+        k 近邻法（k-NN）是最简单直白的分类与回归方法：<b>不用训练</b>，
+        把训练数据"记下来"，来了新样本就看它<b>最近的 k 个邻居</b>是什么类别，谁多听谁的。
+      </p>
+      <div class="meta">
+        <div class="chip">三要素：<b>距离度量 · k 值 · 决策规则</b></div>
+        <div class="chip">数据：<b>iris 鸢尾花</b></div>
+        <div class="chip">加速结构：<b>kd 树</b></div>
+      </div>
+    </div>
+    <div class="foot">按 <span class="kbd">→</span> 或下方圆点翻页 · 右上角可切换深浅色</div>
+  </section>
+
+  <!-- 2 本章地图 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>本章地图 · Chapter 3 Map</div>
+      <h2>第三章，我们按 <span class="em">这条主线</span> 走</h2>
+      <div class="map">
+        <div class="it"><div class="n">00</div><div class="t">为什么有 k-NN</div><div class="d">从"物以类聚"到懒惰学习，以及它的由来</div></div>
+        <div class="it"><div class="n">01</div><div class="t">模型与三要素</div><div class="d">分类 + 回归；距离度量、k 值、决策规则</div></div>
+        <div class="it"><div class="n">02</div><div class="t">距离度量</div><div class="d">$L_p$ 距离：曼哈顿 / 欧氏 / 切比雪夫</div></div>
+        <div class="it"><div class="n">03</div><div class="t">k 值与决策规则</div><div class="d">k 小易过拟合、k 大易欠拟合；多数表决</div></div>
+        <div class="it"><div class="n">04</div><div class="t">代码实战</div><div class="d">自实现 KNN + scikit-learn（含运行结果）</div></div>
+        <div class="it"><div class="n">05</div><div class="t">kd 树</div><div class="d">为什么需要、怎么构造、怎么搜索</div></div>
+      </div>
+      <div class="band" style="margin-top:18px">
+        <span class="big">🧭</span>
+        <div class="txt">一句话记住本章：<b>给定距离、给定 k、给定投票规则，k 近邻法的结果就唯一确定了。</b></div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法</div>
+  </section>
+
+  <!-- 3 过渡：为什么有 k-NN -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>00 · 从一个直觉说起</div>
+      <h2>为什么会有 <span class="em">k 近邻法</span>？</h2>
+      <p class="lead">它的核心思想朴素到像一句俗语：<b>近朱者赤，近墨者黑</b>——想知道一个东西属于哪类，就看它周围最近的邻居是哪类。</p>
+      <div class="grid g-2">
+        <div class="card accent-m"><div class="ct"><span class="num m">1</span>为什么需要它</div>
+          <div class="cb">前两章的感知机要先"训练"出 $w,b$。但现实里很多场景我们只想<b>最直接地利用已有样本</b>：把历史数据存着，新样本来了就近找参照，无需假设模型长什么样。</div></div>
+        <div class="card accent-s"><div class="ct"><span class="num s">2</span>它特别在哪</div>
+          <div class="cb"><b>非参数方法</b>：不预设模型形式；<br><b>懒惰学习（lazy）</b>：没有显式训练，训练阶段只是<b>存数据</b>，所有计算推迟到预测时；<br>既能<b>分类</b>，也能<b>回归</b>。</div></div>
+      </div>
+      <div class="grid g-2" style="margin-top:16px">
+        <div class="card accent-a"><div class="ct"><span class="tag a">1951</span>提出</div><div class="cb">Evelyn Fix 与 Joseph Hodges 最早提出最近邻的思想。</div></div>
+        <div class="card accent-w"><div class="ct"><span class="tag w">1967</span>完善</div><div class="cb">Thomas Cover 与 Peter Hart 给出理论保证：<b>最近邻法的错误率不超过贝叶斯错误率的 2 倍</b>（Cover–Hart 定理）。</div></div>
+      </div>
+      <div class="band" style="margin-top:14px">
+        <span class="big">💡</span>
+        <div class="txt">一句话：k-NN 把"<b>记忆 + 投票</b>"做到了极致——最简单，也最能说明"用样本直接做判断"这条路。</div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 历史脉络参考：Wikipedia《k-nearest neighbors algorithm》</div>
+  </section>
+
+  <!-- 4 定义 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>01 · 模型</div>
+      <h2>k 近邻法 <span class="em">是什么</span></h2>
+      <div class="card" style="margin-bottom:14px">
+        <div class="cb" style="font-size:16px;color:var(--ink)">
+          对给定的<b>输入实例点</b>，先找出训练集中与它<b>最近的 k 个点</b>，
+          再用这 k 个点的类别，按<b>多数表决</b>预测输入实例点的类别。
+        </div>
+      </div>
+      <div class="flow">
+        <div class="fnode"><div class="fh">新样本 x</div><div class="fd">待分类的点</div></div>
+        <div class="farrow">→</div>
+        <div class="fnode" style="border-color:var(--model)"><div class="fh">找 k 个最近邻</div><div class="fd">按距离度量排序</div></div>
+        <div class="farrow">→</div>
+        <div class="fnode" style="border-color:var(--strategy)"><div class="fh">多数表决</div><div class="fd">谁多听谁的</div></div>
+        <div class="farrow">→</div>
+        <div class="fnode" style="border-color:var(--brand)"><div class="fh">输出类别</div><div class="fd">$\hat y$</div></div>
+      </div>
+      <div class="band" style="margin-top:14px">
+        <span class="big">🧩</span>
+        <div class="txt">
+          k 近邻模型，本质上是<b>用训练数据把特征空间划分成若干区域</b>：
+          当训练集、距离度量、k 值与决策规则确定后，划分就唯一确定了。
+        </div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法</div>
+  </section>
+
+  <!-- 5 三要素 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>01 · 三要素</div>
+      <h2>k 近邻法的 <span class="em">三要素</span></h2>
+      <p class="lead">想用好 k-NN，只需要确定这三件事。</p>
+      <div class="grid g-3">
+        <div class="card accent-m" style="padding:20px"><div class="ct"><span class="num m">1</span>距离度量</div>
+          <div class="cb">用什么"尺子"衡量"远近"。常用<b>欧氏距离</b>及更一般的 <b>$L_p$ 距离</b>。</div></div>
+        <div class="card accent-s" style="padding:20px"><div class="ct"><span class="num s">2</span>k 值的选择</div>
+          <div class="cb">看几个邻居。<b>k 小 → 模型复杂（易过拟合）</b>；<b>k 大 → 模型简单（易欠拟合）</b>。通常用<b>交叉验证</b>选。</div></div>
+        <div class="card accent-a" style="padding:20px"><div class="ct"><span class="num a">3</span>分类决策规则</div>
+          <div class="cb">怎么由 k 个邻居定类别。常用<b>多数表决</b>，它对应<b>经验风险最小化</b>。</div></div>
+      </div>
+      <div class="band" style="margin-top:14px">
+        <span class="big">🔑</span>
+        <div class="txt">三要素一旦定下来，k 近邻法就被<b>唯一确定</b>了。换个距离或换个 k，等于换了一个模型。</div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法</div>
+  </section>
+
+  <!-- 6 距离度量 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>02 · 距离度量</div>
+      <h2>$L_p$ 距离：<span class="em">一套"远近"的统一公式</span></h2>
+      <div class="formula">$L_p(x_i,x_j)=\Big(\sum_{l=1}^{n}\big|x_i^{(l)}-x_j^{(l)}\big|^{p}\Big)^{\frac{1}{p}}$</div>
+      <div class="grid g-3">
+        <div class="card accent-m"><div class="ct"><span class="tag m">p = 1</span>曼哈顿距离</div><div class="cb">沿坐标轴走"折线"的长度，也叫曼哈顿距离。</div></div>
+        <div class="card accent-s"><div class="ct"><span class="tag s">p = 2</span>欧氏距离</div><div class="cb">最常用的直线距离 $\sqrt{\sum (x_i^{(l)}-x_j^{(l)})^2}$。</div></div>
+        <div class="card accent-a"><div class="ct"><span class="tag a">p = ∞</span>切比雪夫距离</div><div class="cb">各维差值的<b>最大值</b>。</div></div>
+      </div>
+      <h3 style="margin-top:16px">例 3.1：不同 p 值下谁更近？（运行结果）</h3>
+      <div class="output"><span class="lbl">Out:</span>
+(4.0,               '1-[5, 1]')   # p=1
+(4.0,               '1-[5, 1]')   # p=2
+(3.7797631496846193,'1-[4, 4]')   # p=3
+(3.5676213450081633,'1-[4, 4]')   # p=4</div>
+      <p class="note">取 $x_1=(1,1)$，比较它与 $x_2=(5,1)$、$x_3=(4,4)$ 的距离：$p=1,2$ 时更近的是 $x_2$，$p\ge 3$ 时更近的变成 $x_3$——<b>说明"谁更近"会随距离度量改变</b>。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 例 3.1</div>
+  </section>
+
+  <!-- 7 k 值选择 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>03 · k 值的选择</div>
+      <h2>k 取多大？——<span class="em">复杂度与过拟合</span></h2>
+      <div class="cols">
+        <div class="card accent-w"><div class="ct">k 很小（如 k=1）</div>
+          <div class="cb">只看最近的极少几个点。决策边界非常<b>碎、扭来扭去</b>，跟着噪声走。</div>
+          <div class="resline"><span class="k">结果</span><span class="v">模型复杂 · 过拟合</span></div>
+        </div>
+        <div class="card accent-s"><div class="ct">k 很大（如 k=N）</div>
+          <div class="cb">看几乎所有点。不管输入啥都预测出现最多的类，决策边界趋于<b>平滑</b>。</div>
+          <div class="resline"><span class="k">结果</span><span class="v">模型简单 · 欠拟合</span></div>
+        </div>
+      </div>
+      <div class="band" style="margin-top:14px">
+        <span class="big">⚠️</span>
+        <div class="txt">
+          <b>常见误区</b>：直觉觉得"k 小 = 只看几个点 = 更简单"。其实相反！
+          这里的"复杂度"指的是<b>决策函数的灵活程度、对局部噪声的拟合能力</b>，不是代码好不好写。
+        </div>
+      </div>
+      <p class="note">所以：k 值反映了"近似误差"与"估计误差"之间的权衡，通常用<b>交叉验证</b>选最优 k；二分类时一般取<b>奇数</b>以避免平票。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法</div>
+  </section>
+
+  <!-- 8 决策规则 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>03 · 分类决策规则</div>
+      <h2>多数表决 = <span class="em">经验风险最小化</span></h2>
+      <div class="cols">
+        <div class="card accent-s">
+          <div class="ct">多数表决</div>
+          <div class="cb">k 个邻居中，哪个类别出现次数最多，就判为哪个类别。</div>
+          <div class="formula plain" style="margin-top:8px">$\hat y=\arg\max_{c}\sum_{x_i\in N_k(x)}\mathbb I(y_i=c)$</div>
+        </div>
+        <div class="card accent-a">
+          <div class="ct">为什么等价于经验风险最小化</div>
+          <div class="cb">若把"误分类率"当作 0-1 损失，那么<b>误分类率最小</b>恰好等价于<b>多数表决</b>——即最小化这 k 个近邻上的经验风险。</div>
+        </div>
+      </div>
+      <div class="band" style="margin-top:14px">
+        <span class="big">⚖️</span>
+        <div class="txt">
+          进一步的改进：<b>距离加权</b>——离得越近的邻居权重越大（如权重取 $1/d$），
+          缓解"某一类样本多就总占优"的偏斜问题。
+        </div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法</div>
+  </section>
+
+  <!-- 9 代码实战 1：距离函数 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>04 · 代码实战 (1)</div>
+      <h2>先写一个 <span class="em">$L_p$ 距离函数</span></h2>
+      <div class="cols" style="align-items:start">
+        <div>
+          <pre class="code"><code><span class="tok-k">import</span> math
+
+<span class="tok-k">def</span> <span class="tok-f">L</span>(x, y, p=<span class="tok-n">2</span>):          <span class="tok-c"># 计算 Lp 距离，p 默认取 2（欧氏距离）</span>
+    <span class="tok-k">if</span> <span class="tok-f">len</span>(x) == <span class="tok-f">len</span>(y) <span class="tok-k">and</span> <span class="tok-f">len</span>(x) &gt; <span class="tok-n">1</span>:
+        sum = <span class="tok-n">0</span>
+        <span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(<span class="tok-f">len</span>(x)):
+            sum += math.<span class="tok-f">pow</span>(<span class="tok-f">abs</span>(x[i] - y[i]), p)  <span class="tok-c"># 逐维累加 |x-y|^p</span>
+        <span class="tok-k">return</span> math.<span class="tok-f">pow</span>(sum, <span class="tok-n">1</span> / p)              <span class="tok-c"># 再开 p 次方</span>
+    <span class="tok-k">else</span>:
+        <span class="tok-k">return</span> <span class="tok-n">0</span></code></pre>
+        </div>
+        <div class="card accent-m">
+          <div class="ct">这段代码在做什么</div>
+          <div class="cb">
+            严格按公式实现 $L_p$ 距离：<br>
+            <b>①</b> 逐维算差值的绝对值，取 $p$ 次方；<br>
+            <b>②</b> 全部相加；<br>
+            <b>③</b> 结果开 $p$ 次方。<br><br>
+            改变 <code>p</code> 就切换了度量方式（1/2/∞）。
+          </div>
+        </div>
+      </div>
+      <div class="band">
+        <span class="big">🧪</span>
+        <div class="txt">三个点 $x_1=(1,1),x_2=(5,1),x_3=(4,4)$，用 $p=1,2,3,4$ 分别算距离，就得到上一页的运行结果。</div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 对应 notebook 距离度量部分</div>
+  </section>
+
+  <!-- 10 核心代码 KNN -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>04 · 关键模型代码</div>
+      <h2>自实现 <span class="em">KNN 分类器</span></h2>
+      <pre class="code"><code><span class="tok-k">class</span> <span class="tok-f">KNN</span>:
+    <span class="tok-k">def</span> <span class="tok-f">__init__</span>(self, X_train, y_train, n_neighbors=<span class="tok-n">3</span>, p=<span class="tok-n">2</span>):
+        self.n = n_neighbors      <span class="tok-c"># 近邻点个数 k</span>
+        self.p = p                <span class="tok-c"># 距离度量 Lp 的 p</span>
+        self.X_train = X_train     <span class="tok-c"># 训练特征（懒惰学习：只存不算）</span>
+        self.y_train = y_train     <span class="tok-c"># 训练标签</span>
+
+    <span class="tok-k">def</span> <span class="tok-f">predict</span>(self, X):
+        <span class="tok-c"># 1) 先取前 n 个点填满候选列表</span>
+        knn_list = []
+        <span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(self.n):
+            dist = np.linalg.norm(X - self.X_train[i], ord=self.p)  <span class="tok-c"># Lp 距离</span>
+            knn_list.append((dist, self.y_train[i]))
+        <span class="tok-c"># 2) 扫描其余点，始终保留"最近的 n 个"（维护候选中最远的一个并替换）</span>
+        <span class="tok-k">for</span> i <span class="tok-k">in</span> <span class="tok-f">range</span>(self.n, <span class="tok-f">len</span>(self.X_train)):
+            max_index = knn_list.index(<span class="tok-f">max</span>(knn_list, key=<span class="tok-k">lambda</span> x: x[<span class="tok-n">0</span>]))
+            dist = np.linalg.norm(X - self.X_train[i], ord=self.p)
+            <span class="tok-k">if</span> knn_list[max_index][<span class="tok-n">0</span>] &gt; dist:
+                knn_list[max_index] = (dist, self.y_train[i])
+        <span class="tok-c"># 3) 多数表决：统计这 n 个邻居的类别，取最多的那个</span>
+        knn = [k[-<span class="tok-n">1</span>] <span class="tok-k">for</span> k <span class="tok-k">in</span> knn_list]
+        count_pairs = Counter(knn)
+        max_count = <span class="tok-f">sorted</span>(count_pairs.items(), key=<span class="tok-k">lambda</span> x: x[<span class="tok-n">1</span>])[-<span class="tok-n">1</span>][<span class="tok-n">0</span>]
+        <span class="tok-k">return</span> max_count
+
+    <span class="tok-k">def</span> <span class="tok-f">score</span>(self, X_test, y_test):
+        right_count = <span class="tok-n">0</span>
+        <span class="tok-k">for</span> X, y <span class="tok-k">in</span> <span class="tok-f">zip</span>(X_test, y_test):
+            <span class="tok-k">if</span> self.predict(X) == y:      <span class="tok-c"># 预测对了就 +1</span>
+                right_count += <span class="tok-n">1</span>
+        <span class="tok-k">return</span> right_count / <span class="tok-f">len</span>(X_test)   <span class="tok-c"># 准确率</span></code></pre>
+      <p class="note">注意：<code>predict</code> 里每一步都要"现场算距离"——这正是"懒惰学习"的体现，也解释了为什么后面需要 <b>kd 树</b>来加速。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 对应 notebook 自实现部分</div>
+  </section>
+
+  <!-- 11 运行结果 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>04 · 运行结果</div>
+      <h2>在 iris 上训练与预测</h2>
+      <div class="cols" style="align-items:start">
+        <div>
+          <pre class="code"><code>data = np.array(df.iloc[:<span class="tok-n">100</span>, [<span class="tok-n">0</span>, <span class="tok-n">1</span>, -<span class="tok-n">1</span>]])   <span class="tok-c"># 取前两类、两特征</span>
+X, y = data[:,:-<span class="tok-n">1</span>], data[:,-<span class="tok-n">1</span>]
+X_train, X_test, y_train, y_test = \
+    train_test_split(X, y, test_size=<span class="tok-n">0.2</span>)   <span class="tok-c"># 8:2 划分</span>
+
+clf = KNN(X_train, y_train)
+clf.score(X_test, y_test)          <span class="tok-c"># 测试集准确率</span>
+test_point = [<span class="tok-n">6.0</span>, <span class="tok-n">3.0</span>]
+<span class="tok-f">print</span>(<span class="tok-s">'Test Point: {}'</span>.<span class="tok-f">format</span>(clf.predict(test_point)))</code></pre>
+          <div class="resline"><span class="k">score(X_test,y_test)</span><span class="v">1.0</span></div>
+          <div class="output"><span class="lbl">Out:</span> Test Point: 1.0</div>
+          <p class="note">测试点 $(6.0, 3.0)$ 落在 versicolor（类 1）区域，预测为 <code>1.0</code>，准确率 100%。</p>
+        </div>
+        <div>
+          <figure class="fig">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYIAAAEHCAYAAACjh0HiAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAADh0RVh0U29mdHdhcmUAbWF0cGxvdGxpYiB2ZXJzaW9uMy4xLjMsIGh0dHA6Ly9tYXRwbG90bGliLm9yZy+AADFEAAAgAElEQVR4nO3df5xVdb3v8dfHcY6AIhTSOcKg44/yYQLJD3+FZqYd/EH+IDVNTlHeOHrsaJmUZMcflKnhTa95s4NmmSJKHMIflVoqqZl4BxhBJRNLZQbvlShQBD2An/vHWgPDds/MXrP3d++11n4/H4957Nlrr73ms9bW/WGt9fl8v+buiIhI/dqh1gGIiEhtKRGIiNQ5JQIRkTqnRCAiUueUCERE6pwSgYhIndsx9B8wswagBWh39wkFr00GZgDt8aIb3f2W7ra32267eXNzc4BIRUTya9GiRX9198HFXgueCIALgOXArl28fre7f7nUjTU3N9PS0lKRwERE6oWZvdLVa0EvDZlZE3AC0O2/8kVEpHZC3yO4Hvg68G4363zazJaa2VwzG1ZsBTObYmYtZtayevXqIIGKiNSrYInAzCYAr7v7om5Wuw9odveRwG+B24qt5O4z3X2su48dPLjoJS4REemlkPcIxgEnmtnxQB9gVzO7w90ndazg7ms6rX8zcE3AeEQkhTZt2kRbWxtvv/12rUPJhT59+tDU1ERjY2PJ7wmWCNx9GjANwMw+DlzUOQnEy3d399fipycS3VQWkTrS1tZG//79aW5uxsxqHU6muTtr1qyhra2Nvfbaq+T3Vb2PwMymm9mJ8dPzzew5M3sGOB+YXO14RKS23n77bQYNGqQkUAFmxqBBgxKfXVWjfBR3XwAsiH+/tNPyrWcNInkzf0k7Mx58gVVrNzJkYF+mjt+Pk0cNrXVYqaQkUDm9OZZVSQQi9Wb+knamzVvGxk1bAGhfu5Fp85YBKBlI6miICZEAZjz4wtYk0GHjpi3MePCFGkUk0jUlApEAVq3dmGi5lG7WLGhuhh12iB5nzSpve2vXruWHP/xhr957/fXXs2HDhvICKHDppZfy29/+ttt1FixYwJNPPlmxv6lEIBLAkIF9Ey2X0syaBVOmwCuvgHv0OGVKeckgbYlg+vTpHHPMMd2uo0QgkgFTx+9H38aG7Zb1bWxg6vj9ahRRPlxyCRR+727YEC3vrYsvvpiXXnqJAw88kKlTpzJjxgwOOuggRo4cyWWXXQbAW2+9xQknnMBHPvIRhg8fzt13380NN9zAqlWrOOqoozjqqKO63P4uu+zC1772NUaPHs3RRx9Nx+gIra2tHHrooYwcOZJTTjmFv//97wBMnjyZuXPnAtHYapdddhmjR49mxIgR/PGPf+Tll1/mRz/6Eddddx0HHnggjz/+eO93PqZEIBLAyaOGctXEEQwd2BcDhg7sy1UTR+hGcZlefTXZ8lJcffXV7LPPPrS2tvLJT36SF198kaeffprW1lYWLVrEY489xgMPPMCQIUN45plnePbZZzn22GM5//zzGTJkCI8++iiPPvpol9t/6623GD16NIsXL+bII4/kiiuuAOBzn/sc11xzDUuXLmXEiBFblxfabbfdWLx4Meeeey7XXnstzc3NnHPOOXz1q1+ltbWVI444ovc7H1PVkEggJ48aqi/+Cttjj+hyULHllfDQQw/x0EMPMWrUKADWr1/Piy++yBFHHMFFF13EN77xDSZMmJDoy3eHHXbgM5/5DACTJk1i4sSJrFu3jrVr13LkkUcC8PnPf57TTjut6PsnTpwIwJgxY5g3b145u9d1jEG2KiISwJVXQr9+2y/r1y9aXgnuzrRp02htbaW1tZUVK1Zw9tln86EPfYhFixYxYsQIpk2bxvTp03v9N5LW+e+0004ANDQ0sHnz5l7/3e4oEYhIZpx1FsycCXvuCWbR48yZ0fLe6t+/P2+++SYA48eP59Zbb2X9+vUAtLe38/rrr7Nq1Sr69evHpEmTuOiii1i8ePF73tuVd999d+s1/zvvvJPDDz+cAQMG8L73vW/r9f3bb79969lB0pgrQZeGRCRTzjqrvC/+QoMGDWLcuHEMHz6c4447js9+9rMcdthhQHSj94477mDFihVMnTqVHXbYgcbGRm666SYApkyZwnHHHcfuu+/e5X2CnXfemeeee44xY8YwYMAA7r77bgBuu+02zjnnHDZs2MDee+/NT37yk5Jj/tSnPsWpp57KPffcww9+8IOy7xOYu5e1gWobO3asa4YykfxYvnw5+++/f63DCGaXXXbZeoZRLcWOqZktcvexxdbXpSERkTqnS0MiIhVwyCGH8M4772y37Pbbb6/62UBvKBGIiFTAwoULax1Cr+nSkIhI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" alt="iris 两类散点 + 测试点">
+            <figcaption>蓝 = 类 0（setosa），橙 = 类 1（versicolor），蓝点 = 测试点 (6.0, 3.0)</figcaption>
+          </figure>
+      </div>
+      <div class="band" style="margin-top:10px">
+        <span class="big">🌸</span>
+        <div class="txt"><b>数据集</b>：iris 鸢尾花，<b>sklearn 内置</b>（无需下载），加载方式 <code>from sklearn.datasets import load_iris; iris = load_iris()</code>。本实验取<b>前两类</b>（setosa / versicolor）与 <b>[花萼长, 花萼宽]</b> 两个特征，并按 8:2 划分训练 / 测试集。</div>
+      </div>
+    </div>
+  </div>
+    <div class="foot">第 3 章 · k 近邻法 · 运行结果来自仓库 notebook 实际输出</div>
+  </section>
+
+  <!-- 12 sklearn -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>04 · 工程实现</div>
+      <h2>用 <span class="em">scikit-learn</span> 做 k 近邻</h2>
+      <div class="cols" style="align-items:start">
+        <div>
+          <pre class="code"><code><span class="tok-k">from</span> sklearn.neighbors <span class="tok-k">import</span> KNeighborsClassifier
+
+clf_sk = KNeighborsClassifier()
+clf_sk.fit(X_train, y_train)
+clf_sk.score(X_test, y_test)     <span class="tok-c"># 测试集准确率</span></code></pre>
+          <div class="resline"><span class="k">clf_sk.score</span><span class="v">1.0</span></div>
+          <div class="output"><span class="lbl">fit 返回:</span> KNeighborsClassifier()</div>
+        </div>
+        <div class="card accent-m">
+          <div class="ct">主要参数</div>
+          <ul class="clean" style="margin-top:4px">
+            <li><code>n_neighbors</code>：近邻点个数（k）</li>
+            <li><code>p</code>：距离度量（1/2/…）</li>
+            <li><code>algorithm</code>：近邻算法，可选 <code>auto / ball_tree / kd_tree / brute</code></li>
+            <li><code>weights</code>：近邻的权重（如 <code>'distance'</code> 距离加权）</li>
+          </ul>
+          <p class="note">默认参数即可得 100% 准确率；数据线性可分时，k 近邻也能轻松分开。</p>
+        </div>
+      </div>
+      <div class="band">
+        <span class="big">🔁</span>
+        <div class="txt">自实现版本和 sklearn 版本都得 <b>1.0</b>，互相印证了算法实现正确。</div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 运行结果来自仓库 notebook 实际输出</div>
+  </section>
+
+  <!-- 13 kd树 为什么 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>05 · kd 树</div>
+      <h2>为什么需要 <span class="em">kd 树</span>？</h2>
+      <div class="cols">
+        <div class="card accent-w">
+          <div class="ct">暴力搜索的问题</div>
+          <div class="cb">"懒惰学习"意味着每次预测都要和<b>所有</b>训练点算距离。数据一大，线性扫描极慢——是 k-NN 的主要瓶颈。</div>
+        </div>
+        <div class="card accent-s">
+          <div class="ct">kd 树的想法</div>
+          <div class="cb"><b>kd 树</b>（k 维树）是把数据组织成二叉树的结构：不断用<b>垂直于坐标轴的超平面</b>切分空间，检索时能<b>省去大部分数据点的搜索</b>。</div>
+        </div>
+      </div>
+      <div class="band" style="margin-top:14px">
+        <span class="big">🌳</span>
+        <div class="txt">
+          kd 树的每个结点，对应 k 维空间中的一个<b>超矩形区域</b>。
+          它不是"更好的分类器"，而是一个<b>加速最近邻搜索</b>的数据结构——分类结果不变，只是更快。
+        </div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法</div>
+  </section>
+
+  <!-- 14 kd树 构造 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>05 · kd 树的构造</div>
+      <h2>怎么建一棵 <span class="em">平衡 kd 树</span></h2>
+      <div class="flow">
+        <div class="fnode"><div class="fh">① 选坐标轴</div><div class="fd">依次轮换第 l 维</div></div>
+        <div class="farrow">→</div>
+        <div class="fnode" style="border-color:var(--strategy)"><div class="fh">② 选中位数</div><div class="fd">以该维中位数为切分点</div></div>
+        <div class="farrow">→</div>
+        <div class="fnode"><div class="fh">③ 切分</div><div class="fd">垂直坐标轴切成左右两半</div></div>
+        <div class="farrow">→</div>
+        <div class="fnode" style="border-color:var(--brand)"><div class="fh">④ 递归</div><div class="fd">左右子空间继续建子树</div></div>
+      </div>
+      <pre class="code"><code><span class="tok-k">class</span> <span class="tok-f">KdNode</span>:
+    <span class="tok-k">def</span> <span class="tok-f">__init__</span>(self, dom_elt, split, left, right):
+        self.dom_elt = dom_elt   <span class="tok-c"># k 维向量节点（一个样本点）</span>
+        self.split   = split     <span class="tok-c"># 进行分割的维度序号</span>
+        self.left    = left      <span class="tok-c"># 左子空间构成的 kd 树</span>
+        self.right   = right     <span class="tok-c"># 右子空间构成的 kd 树</span>
+
+<span class="tok-k">class</span> <span class="tok-f">KdTree</span>:
+    <span class="tok-k">def</span> <span class="tok-f">__init__</span>(self, data):
+        k = <span class="tok-f">len</span>(data[<span class="tok-n">0</span>])                    <span class="tok-c"># 数据维度</span>
+        <span class="tok-k">def</span> <span class="tok-f">CreateNode</span>(split, data_set):
+            <span class="tok-k">if</span> <span class="tok-k">not</span> data_set: <span class="tok-k">return</span> <span class="tok-k">None</span>
+            data_set.sort(key=<span class="tok-k">lambda</span> x: x[split])   <span class="tok-c"># 按第 split 维排序</span>
+            split_pos = <span class="tok-f">len</span>(data_set) // <span class="tok-n">2</span>      <span class="tok-c"># 中位数位置</span>
+            median = data_set[split_pos]              <span class="tok-c"># 中位数分割点</span>
+            split_next = (split + <span class="tok-n">1</span>) % k             <span class="tok-c"># 轮换到下一维</span>
+            <span class="tok-k">return</span> <span class="tok-f">KdNode</span>(median, split,
+                <span class="tok-f">CreateNode</span>(split_next, data_set[:split_pos]),       <span class="tok-c"># 左子树</span>
+                <span class="tok-f">CreateNode</span>(split_next, data_set[split_pos+<span class="tok-n">1</span>:]))    <span class="tok-c"># 右子树</span>
+        self.root = <span class="tok-f">CreateNode</span>(<span class="tok-n">0</span>, data)          <span class="tok-c"># 从第 0 维开始建树</span></code></pre>
+      <p class="note">例 3.2 数据 $[[2,3],[5,4],[9,6],[4,7],[8,1],[7,2]]$ 建树后，前序遍历输出：<code>[7,2] → [5,4] → [2,3] → [4,7] → [9,6] → [8,1]</code>。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 例 3.2 · 运行结果来自 notebook</div>
+  </section>
+
+  <!-- 15 kd树 搜索 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>05 · kd 树的搜索</div>
+      <h2>最近邻搜索：<span class="em">能剪枝就剪枝</span></h2>
+      <div class="grid g-3">
+        <div class="card accent-m"><div class="ct">① 向下到底</div><div class="cb">从根出发，按目标点坐标一路走到<b>叶结点</b>，作为"当前最近点"。</div></div>
+        <div class="card accent-s"><div class="ct">② 向上回溯</div><div class="cb">回退到每个父结点，看它是否比当前最近点更近，是则更新。</div></div>
+        <div class="card accent-a"><div class="ct">③ 判断另一支</div><div class="cb">看另一子空间 <b>是否与"以目标点为球心的超球体"相交</b>：相交才进去搜，否则<b>剪掉</b>。</div></div>
+      </div>
+      <h3 style="margin-top:14px">运行结果（例 3.2 与大规模数据）</h3>
+      <div class="output"><span class="lbl">Out:</span> Result_tuple(nearest_point=[2, 3], nearest_dist=1.8027756377319946, nodes_visited=4)   # 目标点 (3, 4.5)</div>
+      <div class="output"><span class="lbl">Out:</span>
+N = 400000 个 3 维随机点，找最近邻： time: 5.17 s
+nearest_dist = 0.0010460533893058112， nodes_visited = 38   # 只访问了 38 个结点！</div>
+      <p class="note">关键看点：40 万个点里找最近邻，<b>只访问了 38 个结点</b>——这就是 kd 树"省去大部分搜索"的威力。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 运行结果来自仓库 notebook 实际输出</div>
+  </section>
+
+  <!-- 16 习题3.1 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>06 · 习题 3.1</div>
+      <h2>k=1 与 k=2 的 <span class="em">空间划分对比</span></h2>
+      <p class="lead">在同一批二维实例点上，比较不同 k 值切出的区域，体会 k 与模型复杂度、准确率的关系。</p>
+      <div class="cols" style="align-items:start">
+        <figure class="fig">
+          <img src="data:image/png;base64,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" alt="k=1 与 k=2 的 k 近邻空间划分对比">
+          <figcaption>左：k=1 的空间划分；右：k=2 的空间划分（来自习题 3.1）</figcaption>
+        </figure>
+        <div class="card accent-m">
+          <div class="ct">观察与结论</div>
+          <ul class="clean" style="margin-top:4px">
+            <li><b>k=1</b> 时边界贴着每个点走，<b>区域很碎</b>，容易被单个噪声点影响 → 模型复杂、易过拟合。</li>
+            <li><b>k=2</b> 时边界更<b>平滑</b>、区域更规整 → 模型更简单，泛化更稳。</li>
+            <li>k 越大划分越平滑，但太大会把两类混在一起 → 欠拟合。</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">本页数据是课本给的一份 18 个二维实例点（硬编码），非公共数据集。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 习题 3.1 · 图来自 notebook 实际输出</div>
+  </section>
+
+  <!-- 17 习题3.2/3.3 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>06 · 习题 3.2 / 3.3</div>
+      <h2>用 kd 树求最近邻，并推广到 <span class="em">k 近邻搜索</span></h2>
+      <div class="cols" style="align-items:start">
+        <div>
+          <h3>习题 3.2：求 $x=(3,4.5)^T$ 的最近邻</h3>
+          <pre class="code"><code><span class="tok-k">from</span> sklearn.neighbors <span class="tok-k">import</span> KDTree
+train_data = np.array([(<span class="tok-n">2</span>,<span class="tok-n">3</span>),(<span class="tok-n">5</span>,<span class="tok-n">4</span>),(<span class="tok-n">9</span>,<span class="tok-n">6</span>),(<span class="tok-n">4</span>,<span class="tok-n">7</span>),(<span class="tok-n">8</span>,<span class="tok-n">1</span>),(<span class="tok-n">7</span>,<span class="tok-n">2</span>)])
+tree = <span class="tok-f">KDTree</span>(train_data, leaf_size=<span class="tok-n">2</span>)
+dist, ind = tree.query(np.array([(<span class="tok-n">3</span>,<span class="tok-n">4.5</span>)]), k=<span class="tok-n">1</span>)</code></pre>
+          <div class="output"><span class="lbl">Out:</span> x点的最近邻点是(2, 3)</div>
+        </div>
+        <div class="card accent-s">
+          <div class="ct">习题 3.3：k 近邻搜索（算法升级）</div>
+          <div class="cb">
+            把"最近邻"推广成"k 个近邻"：<br>
+            · 用大小为 k 的<b>当前 k 近邻点集</b>代替"单个最近点"；<br>
+            · 叶结点/回溯结点只要<b>比当前最远点更近</b>就插入集合；<br>
+            · 判断是否进入另一子空间时，半径取"到最远点的距离"；<br>
+            · 回退到根时，集合即为 x 的 k 个近邻。
+          </div>
+        </div>
+      </div>
+      <p class="note">同一份数据、同一个查询点，两种 kd 树实现（自实现 / sklearn）都得到 <b>(2, 3)</b>，结果一致。</p>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 习题 3.2 / 3.3 · 运行结果来自 notebook</div>
+  </section>
+
+  <!-- 18 小结 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="kicker"><span class="bar"></span>本章小结 · Summary</div>
+      <h2>带走这 <span class="em">五句话</span></h2>
+      <div class="grid g-2">
+        <div class="card accent-m"><div class="ct"><span class="num m">1</span>模型</div><div class="cb">给定输入点，取<b>最近的 k 个训练点</b>，<b>多数表决</b>决定类别；可用于分类与回归。</div></div>
+        <div class="card accent-s"><div class="ct"><span class="num s">2</span>三要素</div><div class="cb"><b>距离度量</b>（$L_p$ 距离）、<b>k 值</b>、<b>分类决策规则</b>；三者确定，模型唯一。</div></div>
+        <div class="card accent-a"><div class="ct"><span class="num a">3</span>k 与复杂度</div><div class="cb"><b>k 小 → 模型复杂 → 过拟合</b>；<b>k 大 → 模型简单 → 欠拟合</b>；用交叉验证选 k（二分类取奇数）。</div></div>
+        <div class="card accent-w"><div class="ct"><span class="num x">4</span>kd 树</div><div class="cb">用中位数切分构造二叉树，搜索时<b>剪枝</b>省去大部分点：40 万点只访问 38 个结点。</div></div>
+      </div>
+      <div class="card" style="margin-top:14px;border-left:4px solid var(--brand)">
+        <div class="ct"><span class="num m">5</span>代码与数据</div>
+        <div class="cb">
+          <b>iris 公共数据集</b>（sklearn 内置，<code>from sklearn.datasets import load_iris</code>）；
+          自实现 <code>KNN</code> 与 <code>KNeighborsClassifier</code> 两条路径、准确率均为 <b>1.0</b>；
+          还实现了 <code>KdTree</code> 的构造与最近邻搜索。
+        </div>
+      </div>
+      <div class="band" style="margin-top:12px">
+        <span class="big">🚀</span>
+        <div class="txt">下一章进入 <b>朴素贝叶斯法</b>——第一个<b>生成模型</b>，从概率的角度做分类。</div>
+      </div>
+    </div>
+    <div class="foot">第 3 章 · k 近邻法 · 完</div>
+  </section>
+
+</div>
+
+<div class="hint">← → 翻页 · <span class="kbd">空格</span> 下一页 · <span class="kbd">O</span> 总览 · <span class="kbd">T</span> 主题</div>
+
+<div class="nav">
+  <button id="prev" title="上一页">‹</button>
+  <div class="dots" id="dots"></div>
+  <div class="counter"><b id="cur">1</b> / <span id="tot">18</span></div>
+  <button id="next" title="下一页">›</button>
+</div>
+
+<script>
+(function(){
+  const slides=[...document.querySelectorAll('.slide')];
+  const total=slides.length; let idx=0;
+  const dots=document.getElementById('dots'), progress=document.getElementById('progress'), curEl=document.getElementById('cur');
+  document.getElementById('tot').textContent=total;
+  slides.forEach((s,i)=>{const d=document.createElement('i');d.title='第 '+(i+1)+' 页';d.addEventListener('click',()=>go(i));dots.appendChild(d);});
+  const dotEls=[...dots.children];
+  function render(){
+    slides.forEach((s,i)=>{s.classList.toggle('active',i===idx);s.classList.toggle('prev',i<idx);});
+    dotEls.forEach((d,i)=>d.classList.toggle('on',i===idx));
+    curEl.textContent=idx+1; progress.style.width=((idx+1)/total*100)+'%';
+    document.getElementById('prev').disabled=idx===0; document.getElementById('next').disabled=idx===total-1;
+    if(window.MathJax&&MathJax.typesetPromise){MathJax.typesetPromise([slides[idx]]).catch(()=>{});}
+  }
+  function go(i){idx=Math.max(0,Math.min(total-1,i));render();}
+  function next(){go(idx+1);} function prev(){go(idx-1);}
+  document.getElementById('next').addEventListener('click',next);
+  document.getElementById('prev').addEventListener('click',prev);
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();next();}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();prev();}
+    else if(e.key==='Home'){e.preventDefault();go(0);}
+    else if(e.key==='End'){e.preventDefault();go(total-1);}
+    else if(e.key==='o'||e.key==='O'){e.preventDefault();overview();}
+    else if(e.key==='t'||e.key==='T'){e.preventDefault();toggleTheme();}
+  });
+  let lock=false;
+  window.addEventListener('wheel',e=>{if(lock)return;const y=e.deltaY;if(Math.abs(y)<18)return;lock=true;setTimeout(()=>lock=false,650);y>0?next():prev();},{passive:true});
+  function overview(){
+    const g=document.createElement('div');
+    g.style.cssText='position:fixed;inset:0;z-index:100;background:var(--bg);backdrop-filter:blur(6px);padding:64px 28px 28px;overflow:auto';
+    const h=document.createElement('div');h.textContent='总览 · 点击任意页跳转（Esc 关闭）';
+    h.style.cssText='font-weight:900;font-size:18px;margin-bottom:18px;color:var(--ink)';g.appendChild(h);
+    const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px';
+    slides.forEach((s,i)=>{
+      const t=s.querySelector('h1,h2')?.textContent?.trim()||('第 '+(i+1)+' 页');
+      const c=document.createElement('div');
+      c.style.cssText='background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;box-shadow:var(--shadow-sm);transition:.15s';
+      c.innerHTML='<div style="font-family:JetBrains Mono,monospace;color:var(--brand);font-weight:700;font-size:13px">'+(i+1<10?'0':'')+(i+1)+'</div>'+
+                  '<div style="font-weight:700;margin-top:6px;font-size:14px;color:var(--ink);line-height:1.4">'+t+'</div>';
+      c.addEventListener('mouseenter',()=>{c.style.transform='translateY(-3px)';c.style.borderColor='var(--brand-2)';});
+      c.addEventListener('mouseleave',()=>{c.style.transform='none';c.style.borderColor='var(--line)';});
+      c.addEventListener('click',()=>{g.remove();go(i);}); grid.appendChild(c);
+    });
+    g.appendChild(grid); document.body.appendChild(g);
+    const close=e=>{if(e.key==='Escape'){g.remove();document.removeEventListener('keydown',close);}};
+    document.addEventListener('keydown',close);
+  }
+  document.getElementById('btnOverview').addEventListener('click',overview);
+  document.getElementById('btnFull').addEventListener('click',()=>{
+    if(!document.fullscreenElement){document.documentElement.requestFullscreen?.();}else{document.exitFullscreen?.();}
+  });
+  const themeBtn=document.getElementById('btnTheme');
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t);themeBtn.textContent=t==='dark'?'🌙 深色':'☀️ 浅色';try{localStorage.setItem('deck-theme',t);}catch(e){}}
+  function toggleTheme(){const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';applyTheme(cur);}
+  themeBtn.addEventListener('click',toggleTheme);
+  applyTheme(document.documentElement.getAttribute('data-theme')||'dark');
+  render();
+})();
+</script>
+</body>
+</html>
